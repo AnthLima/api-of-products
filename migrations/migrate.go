@@ -2,6 +2,7 @@ package migrations
 
 import (
 	"fmt"
+	"go-api/utils"
 	"log"
 	"os"
 	"path/filepath"
@@ -21,7 +22,7 @@ func HandleMigration(args []string) {
 	switch command {
 	case "create":
 		if len(args) < 2 {
-			log.Fatal("Nome da migração é obrigatório.")
+			log.Fatal("The name of migrations is mandatory!")
 		}
 		createMigration(args[1])
 	case "up":
@@ -29,7 +30,7 @@ func HandleMigration(args []string) {
 	case "down":
 		migrateDown()
 	default:
-		fmt.Println("Comando inválido. Use: create, up ou down")
+		fmt.Println("Invalid command. Use: create, up ou down")
 	}
 }
 
@@ -53,27 +54,38 @@ func createMigration(name string) {
 }
 
 func getMigrateInstance() *migrate.Migrate {
-	dsn := "postgres://user:password@localhost:5432/meubanco?sslmode=disable"
+	dbUser := utils.UseEnv("DB_USER", "postgres")
+	dbPassword := utils.UseEnv("DB_PASSWORD", "postgres")
+	dbHost := utils.UseEnv("DB_HOST", "localhost")
+	dbPort := utils.UseEnv("DB_PORT", "5432")
+	dbName := utils.UseEnv("DB_NAME", "postgres")
+	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+		dbUser,
+		dbPassword,
+		dbHost,
+		dbPort,
+		dbName,
+	)
 	db, err := gorm.Open(gormpostgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		log.Fatal("Erro ao conectar ao banco:", err)
+		log.Fatal("Error to connect in database:", err)
 	}
 
 	sqlDB, err := db.DB()
 	if err != nil {
-		log.Fatal("Erro ao obter DB:", err)
+		log.Fatal("Error to obtain database:", err)
 	}
 
 	driver, err := migratepostgres.WithInstance(sqlDB, &migratepostgres.Config{})
 	if err != nil {
-		log.Fatal("Erro ao configurar driver:", err)
+		log.Fatal("Error to configure driver:", err)
 	}
 
 	m, err := migrate.NewWithDatabaseInstance(
 		"file://"+migrationDir,
 		"postgres", driver)
 	if err != nil {
-		log.Fatal("Erro ao criar migração:", err)
+		log.Fatal("Error to create migration:", err)
 	}
 
 	return m
@@ -82,15 +94,15 @@ func getMigrateInstance() *migrate.Migrate {
 func migrateUp() {
 	m := getMigrateInstance()
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		log.Fatal("Erro ao aplicar migrações:", err)
+		log.Fatal("Error to apply migration:", err)
 	}
-	fmt.Println("Migrações aplicadas com sucesso!")
+	fmt.Println("Success to apply migrations!")
 }
 
 func migrateDown() {
 	m := getMigrateInstance()
 	if err := m.Down(); err != nil && err != migrate.ErrNoChange {
-		log.Fatal("Erro ao reverter migrações:", err)
+		log.Fatal("Error to revert migration:", err)
 	}
-	fmt.Println("Migrações revertidas com sucesso!")
+	fmt.Println("Success to revert migrations!")
 }

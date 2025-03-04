@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"go-api/database"
+	database "go-api/db"
 	"go-api/initializers"
 	"go-api/migrations"
 	"go-api/utils"
