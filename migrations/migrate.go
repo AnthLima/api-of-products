@@ -6,6 +6,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/golang-migrate/migrate/v4"
 	migratepostgres "github.com/golang-migrate/migrate/v4/database/postgres"
@@ -29,9 +31,46 @@ func HandleMigration(args []string) {
 		migrateUp()
 	case "down":
 		migrateDown()
+	case "force":
+		if len(args) < 2 {
+			log.Fatal("Version is required.")
+		}
+		version := utils.StringToInt(args[1])
+		forceVersion(version)
 	default:
-		fmt.Println("Invalid command. Use: create, up ou down")
+		fmt.Println("Invalid command. Use: create, up, down, or force")
 	}
+}
+
+func getNextMigrationVersion() int {
+	files, err := os.ReadDir(migrationDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return 1
+		}
+		log.Fatal("Error to read migrations directory:", err)
+	}
+
+	maxVersion := 0
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+
+		fileName := file.Name()
+		if strings.HasSuffix(fileName, ".up.sql") || strings.HasSuffix(fileName, ".down.sql") {
+			parts := strings.Split(fileName, "_")
+			if len(parts) > 0 {
+				versionStr := parts[0]
+				version, err := strconv.Atoi(versionStr)
+				if err == nil && version > maxVersion {
+					maxVersion = version
+				}
+			}
+		}
+	}
+
+	return maxVersion + 1
 }
 
 func createMigration(name string) {
@@ -39,9 +78,10 @@ func createMigration(name string) {
 		os.MkdirAll(migrationDir, os.ModePerm)
 	}
 
-	timestamp := fmt.Sprintf("%d", os.Getpid())
-	upFile := filepath.Join(migrationDir, fmt.Sprintf("%s_%s.up.sql", timestamp, name))
-	downFile := filepath.Join(migrationDir, fmt.Sprintf("%s_%s.down.sql", timestamp, name))
+	version := getNextMigrationVersion()
+
+	upFile := filepath.Join(migrationDir, fmt.Sprintf("%04d_%s.up.sql", version, name))
+	downFile := filepath.Join(migrationDir, fmt.Sprintf("%04d_%s.down.sql", version, name))
 
 	if err := os.WriteFile(upFile, []byte("-- UP MIGRATION\n"), 0644); err != nil {
 		log.Fatal(err)
@@ -50,8 +90,9 @@ func createMigration(name string) {
 		log.Fatal(err)
 	}
 
-	fmt.Printf("Migração criada: %s e %s\n", upFile, downFile)
+	fmt.Printf("Migration created: %s and %s\n", upFile, downFile)
 }
+
 
 func getMigrateInstance() *migrate.Migrate {
 	dbUser := utils.UseEnv("DB_USER", "postgres")
@@ -105,4 +146,12 @@ func migrateDown() {
 		log.Fatal("Error to revert migration:", err)
 	}
 	fmt.Println("Success to revert migrations!")
+}
+
+func forceVersion(version int) {
+	m := getMigrateInstance()
+	if err := m.Force(version); err != nil {
+		log.Fatal("Error to try force version:", err)
+	}
+	fmt.Printf("Version changed to %d successful!\n", version)
 }
