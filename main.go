@@ -19,7 +19,7 @@ func init() {
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "migrate" {
 		if len(os.Args) < 3 {
-			fmt.Println("Uso: go run main.go migrate [create|up|down] nome_da_migracao")
+			fmt.Println("Use: go run main.go migrate [create|up|down] name_of_migration")
 			os.Exit(1)
 		}
 		migrations.HandleMigration(os.Args[2:])
