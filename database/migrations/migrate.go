@@ -16,7 +16,7 @@ import (
 	"gorm.io/gorm"
 )
 
-const migrationDir = "db/migrations"
+const migrationDir = "database/migrations"
 
 func HandleMigration(args []string) {
 	command := args[0]

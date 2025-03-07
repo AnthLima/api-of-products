@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	database "go-api/db"
+	"go-api/database"
+	"go-api/database/migrations"
 	"go-api/initializers"
-	"go-api/migrations"
 	"go-api/utils"
 	"os"
 
